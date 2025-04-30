@@ -6,11 +6,11 @@ from pyrogram.types import Message
 from pyromod import listen
 
 # ================== CONFIG ==================
-API_ID = 1234567  # Replace with your actual API_ID
-API_HASH = "your_api_hash"  # Replace with your actual API_HASH
-BOT_TOKEN = "your_bot_token"  # Replace with your bot token
+API_ID = 28526237  # Replace with your actual API_ID
+API_HASH = "936db76a74f9a52cfb2cea8a62e4c20e"  # Replace with your actual API_HASH
+BOT_TOKEN = "7780658331:AAFVkysE818mG5NFeK0UiCp_n7a3pNZmnkE"  # Replace with your bot token
 
-SUDO_USERS = [123456789]  # Replace with your Telegram user ID(s)
+SUDO_USERS = [6486192717]  # Replace with your Telegram user ID(s)
 
 # Simple check
 def one(user_id):
