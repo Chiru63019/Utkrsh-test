@@ -37,6 +37,7 @@ async def utkarsh_handler(bot: Client, message: Message):
     # Step 1: Send OTP
     r1 = requests.post("https://utkarshclassesapi.classx.co.in/api/utk/send-otp", json={"mobile": phone})
     if r1.status_code != 200:
+        print("OTP Send Error:", r1.status_code, r1.text)  # This line is now properly indented
         return await editable.edit("Failed to send OTP. Try again.")
 
     await editable.edit("OTP sent successfully. Now send the OTP you received:")
