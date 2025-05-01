@@ -39,15 +39,22 @@ async def utkarsh_handler(bot: Client, message: Message):
     input1 = await bot.listen(editable.chat.id)
     phone = input1.text.strip()
 
-    # Step 1: Send OTP
+    # Step 1: Send OTP (via real working API)
     headers = {
-        "User-Agent": "okhttp/4.9.1",
-        "Content-Type": "application/json"
+        "Authorization": "Basic c2hvYWlia2hhbjoxMjM0NTY=",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "okhttp/4.9.1"
+    }
+
+    data = {
+        "mobile": phone,
+        "query": "student_login2",
+        "user_type": "Student"
     }
 
     r1 = requests.post(
-        "https://utkarshclassesapi.classx.co.in/api/utk/send-otp",
-        json={"mobile": phone},
+        "http://utkarshpublications.com/soft/apis/offlineapp-liveapis/get_user2",
+        data=data,
         headers=headers
     )
 
@@ -57,7 +64,7 @@ async def utkarsh_handler(bot: Client, message: Message):
     except Exception as e:
         error_msg = f"❌ Server ने सही जवाब नहीं भेजा:\n\n{r1.text}\n\nError: {e}"
 
-    if r1.status_code != 200:
+    if r1.status_code != 200 or not r1.text.strip().startswith("{"):
         return await editable.edit(f"❌ OTP भेजने में समस्या:\n\n{error_msg}")
     
     await editable.edit("OTP sent successfully. Now send the OTP you received:")
