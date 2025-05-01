@@ -25,6 +25,11 @@ async def start_command(bot: Client, message: Message):
     await message.reply_text("Hello! Use /utkarsh to scrape Utkarsh Classes content.")
 
 
+@bot.on_message(filters.command("start"))
+async def start_command(bot: Client, message: Message):
+    await message.reply_text("Hello! Use /utkarsh to scrape Utkarsh Classes content.")
+
+
 @bot.on_message(filters.command("utkarsh"))
 async def utkarsh_handler(bot: Client, message: Message):
     if not one(message.from_user.id):
@@ -36,10 +41,17 @@ async def utkarsh_handler(bot: Client, message: Message):
 
     # Step 1: Send OTP
     r1 = requests.post("https://utkarshclassesapi.classx.co.in/api/utk/send-otp", json={"mobile": phone})
-    if r1.status_code != 200:
-        print("OTP Send Error:", r1.status_code, r1.text)  # This line is now properly indented
-        return await editable.edit("Failed to send OTP. Try again.")
 
+    try:
+        json_data = r1.json()
+        error_msg = json_data.get("message") or json_data.get("error") or str(json_data)
+    except Exception as e:
+        error_msg = f"❌ Server ने सही जवाब नहीं भेजा:\n\n{r1.text}\n\nError: {e}"
+
+    if r1.status_code != 200:
+        return await editable.edit(f"❌ OTP भेजने में समस्या:\n\n{error_msg}")
+
+    
     await editable.edit("OTP sent successfully. Now send the OTP you received:")
     input2 = await bot.listen(editable.chat.id)
     otp = input2.text.strip()
