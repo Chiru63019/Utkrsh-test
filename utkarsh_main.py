@@ -13,12 +13,13 @@ SUDO_USERS = [6486192717]
 def one(user_id):
     return user_id in SUDO_USERS
 
-# =============== START BOT ===============
 bot = Client("utkarsh_scraper_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
 
 @bot.on_message(filters.command("start"))
 async def start_command(bot: Client, message: Message):
     await message.reply_text("Hello! Use /utkarsh to scrape Utkarsh Classes content.")
+
 
 @bot.on_message(filters.command("utkarsh"))
 async def utkarsh_handler(bot: Client, message: Message):
@@ -29,51 +30,46 @@ async def utkarsh_handler(bot: Client, message: Message):
     input1 = await bot.listen(editable.chat.id)
     phone = input1.text.strip()
 
-    # Step 1: Send OTP (✅ updated)
-    send_otp_url = "https://utkarshclassesapi.classx.co.in/api/v1/auth/send-otp/"
-    send_headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "okhttp/4.9.1"
-    }
+    # Step 1: Send OTP
+    r1 = requests.post(
+        "https://utkarshclassesapi.classx.co.in/api/v1/auth/send-otp/",
+        json={"mobile": phone},
+        headers={"Content-Type": "application/json"}
+    )
 
-    r1 = requests.post(send_otp_url, json={"mobile": phone}, headers=send_headers)
+    if r1.status_code != 200:
+        return await editable.edit(f"❌ OTP भेजने में समस्या:\n\n{r1.text}")
 
-    try:
-        r1_data = r1.json()
-        error_msg = r1_data.get("message") or r1_data.get("error") or str(r1_data)
-    except Exception as e:
-        error_msg = f"❌ Server ने सही जवाब नहीं भेजा:\n\n{r1.text}\n\nError: {e}"
-
-    if r1.status_code != 200 or not r1.text.strip().startswith("{"):
-        return await editable.edit(f"❌ OTP भेजने में समस्या:\n\n{error_msg}")
-    
-    await editable.edit("✅ OTP sent successfully. Now send the OTP you received:")
+    await editable.edit("OTP sent successfully. Now send the OTP you received:")
     input2 = await bot.listen(editable.chat.id)
     otp = input2.text.strip()
 
-    # Step 2: Verify OTP (✅ updated)
-    verify_url = "https://utkarshclassesapi.classx.co.in/api/v1/auth/verify-otp/"
-    r2 = requests.post(verify_url, json={"mobile": phone, "otp": otp}, headers=send_headers)
+    # Step 2: Verify OTP
+    r2 = requests.post(
+        "https://utkarshclassesapi.classx.co.in/api/v1/auth/verify-otp/",
+        json={"mobile": phone, "otp": otp},
+        headers={"Content-Type": "application/json"}
+    )
 
     try:
         data = r2.json()
-    except:
-        return await editable.edit("OTP verification failed. Server response invalid.")
-
-    if "access_token" not in data:
-        return await editable.edit("❌ OTP verification failed.")
-
-    token = data["access_token"]
-    user_id = str(data.get("user", {}).get("id") or "0")
+        token = data["access_token"]
+        user_id = str(data["user"]["id"])
+    except Exception as e:
+        return await editable.edit(f"OTP verification failed:\n\n{r2.text}\n\nError: {e}")
 
     headers = {
         "Authorization": f"Bearer {token}",
-        "User-ID": user_id,
+        "User-ID": user_id
     }
 
     # Step 3: Get Courses
     r3 = requests.get("https://utkarshclassesapi.classx.co.in/api/utk/course-list", headers=headers)
-    courses = r3.json().get("data", [])
+    try:
+        courses = r3.json().get("data", [])
+    except:
+        return await editable.edit(f"Course list fetch failed:\n\n{r3.text}")
+
     if not courses:
         return await editable.edit("No courses found.")
 
@@ -89,7 +85,10 @@ async def utkarsh_handler(bot: Client, message: Message):
     # Step 4: Get Course Content
     content_url = f"https://utkarshclassesapi.classx.co.in/api/utk/course-content?course_id={course_id}"
     r4 = requests.get(content_url, headers=headers)
-    content_data = r4.json().get("data", {}).get("content", [])
+    try:
+        content_data = r4.json().get("data", {}).get("content", [])
+    except:
+        return await message.reply_text(f"Error fetching content:\n\n{r4.text}")
 
     if not content_data:
         return await message.reply_text("No content found in this course.")
@@ -106,7 +105,7 @@ async def utkarsh_handler(bot: Client, message: Message):
         f.write(to_write)
 
     with open(filename, "rb") as f:
-        await bot.send_document(message.chat.id, f, caption="Here is your txt file.")
+        await bot.send_document(message.chat.id, f, caption="Here is your course content.")
 
 print("Bot is running...")
 bot.run()
