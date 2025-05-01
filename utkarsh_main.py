@@ -5,10 +5,10 @@ from pyrogram.types import Message
 from pyromod import listen
 
 # ========== CONFIGURATION ==========
-API_ID = 28526237
-API_HASH = "936db76a74f9a52cfb2cea8a62e4c20e"
-BOT_TOKEN = "7780658331:AAFVkysE818mG5NFeK0UiCp_n7a3pNZmnkE"
-SUDO_USERS = [6486192717]
+API_ID = 28526237  # अपने API_ID से बदलें
+API_HASH = "936db76a74f9a52cfb2cea8a62e4c20e"  # अपने API_HASH से बदलें
+BOT_TOKEN = "7780658331:AAFVkysE818mG5NFeK0UiCp_n7a3pNZmnkE"  # अपने बॉट टोकन से बदलें
+SUDO_USERS = [6486192717]  # अपने Telegram उपयोगकर्ता ID(s) से बदलें
 
 def is_sudo(user_id):
     return user_id in SUDO_USERS
@@ -28,10 +28,17 @@ async def utkarsh_handler(bot: Client, message: Message):
     input1 = await bot.listen(ask.chat.id)
     phone = input1.text.strip()
 
-    # Step 1: Send OTP (NEW WORKING API)
+    # Step 1: Send OTP
+    headers_otp = {
+        "User-Agent": "okhttp/4.9.1",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
     r1 = requests.post(
         "https://utkarshclassesapi.classx.co.in/api/utk/send-otp",
-        json={"mobile": phone}
+        json={"mobile": phone},
+        headers=headers_otp
     )
 
     try:
@@ -48,9 +55,16 @@ async def utkarsh_handler(bot: Client, message: Message):
     otp = input2.text.strip()
 
     # Step 2: Verify OTP
+    headers_verify = {
+        "User-Agent": "okhttp/4.9.1",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
     r2 = requests.post(
         "https://utkarshclassesapi.classx.co.in/api/utk/verify-otp",
-        json={"mobile": phone, "otp": otp}
+        json={"mobile": phone, "otp": otp},
+        headers=headers_verify
     )
 
     try:
@@ -62,7 +76,9 @@ async def utkarsh_handler(bot: Client, message: Message):
 
     headers = {
         "Authorization": f"Bearer {token}",
-        "User-ID": user_id
+        "User-ID": user_id,
+        "User-Agent": "okhttp/4.9.1",
+        "Accept": "application/json"
     }
 
     # Step 3: Get Course List
