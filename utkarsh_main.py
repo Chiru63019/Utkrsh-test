@@ -15,11 +15,9 @@ def one(user_id):
 
 bot = Client("utkarsh_scraper_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-
 @bot.on_message(filters.command("start"))
 async def start_command(bot: Client, message: Message):
     await message.reply_text("Hello! Use /utkarsh to scrape Utkarsh Classes content.")
-
 
 @bot.on_message(filters.command("utkarsh"))
 async def utkarsh_handler(bot: Client, message: Message):
@@ -34,13 +32,16 @@ async def utkarsh_handler(bot: Client, message: Message):
     r1 = requests.post(
         "https://utkarshclassesapi.classx.co.in/api/v1/auth/send-otp/",
         json={"mobile": phone},
-        headers={"Content-Type": "application/json"}
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "okhttp/4.9.1"
+        }
     )
 
     if r1.status_code != 200:
-        return await editable.edit(f"❌ OTP भेजने में समस्या:\n\n{r1.text}")
+        return await editable.edit(f"❌ OTP भेजने में समस्या:\n\n{r1.status_code} {r1.reason}")
 
-    await editable.edit("OTP sent successfully. Now send the OTP you received:")
+    await editable.edit("✅ OTP भेज दिया गया है। अब कृपया OTP भेजें:")
     input2 = await bot.listen(editable.chat.id)
     otp = input2.text.strip()
 
@@ -48,57 +49,58 @@ async def utkarsh_handler(bot: Client, message: Message):
     r2 = requests.post(
         "https://utkarshclassesapi.classx.co.in/api/v1/auth/verify-otp/",
         json={"mobile": phone, "otp": otp},
-        headers={"Content-Type": "application/json"}
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "okhttp/4.9.1"
+        }
     )
 
     try:
         data = r2.json()
-        token = data["access_token"]
-        user_id = str(data["user"]["id"])
-    except Exception as e:
-        return await editable.edit(f"OTP verification failed:\n\n{r2.text}\n\nError: {e}")
+    except:
+        return await editable.edit(f"❌ OTP verification failed:\n\n{r2.text}")
+
+    if "data" not in data or "token" not in data["data"]:
+        return await editable.edit("❌ OTP गलत है या session expire हो गया।")
+
+    token = data["data"]["token"]
+    user_id = str(data["data"]["user"]["id"])
 
     headers = {
         "Authorization": f"Bearer {token}",
-        "User-ID": user_id
+        "User-ID": user_id,
+        "User-Agent": "okhttp/4.9.1"
     }
 
     # Step 3: Get Courses
     r3 = requests.get("https://utkarshclassesapi.classx.co.in/api/utk/course-list", headers=headers)
-    try:
-        courses = r3.json().get("data", [])
-    except:
-        return await editable.edit(f"Course list fetch failed:\n\n{r3.text}")
-
+    courses = r3.json().get("data", [])
     if not courses:
-        return await editable.edit("No courses found.")
+        return await editable.edit("❌ कोई कोर्स नहीं मिला।")
 
-    text = "**Your Courses:**\n\n"
+    text = "**आपके Courses:**\n\n"
     for c in courses:
         text += f"`{c['id']}` - {c['title']}\n"
     await editable.edit(text)
 
-    editable2 = await message.reply_text("Send a Course ID to fetch content:")
+    editable2 = await message.reply_text("कृपया कोई Course ID भेजें:")
     input3 = await bot.listen(editable2.chat.id)
     course_id = input3.text.strip()
 
     # Step 4: Get Course Content
     content_url = f"https://utkarshclassesapi.classx.co.in/api/utk/course-content?course_id={course_id}"
     r4 = requests.get(content_url, headers=headers)
-    try:
-        content_data = r4.json().get("data", {}).get("content", [])
-    except:
-        return await message.reply_text(f"Error fetching content:\n\n{r4.text}")
+    content_data = r4.json().get("data", {}).get("content", [])
 
     if not content_data:
-        return await message.reply_text("No content found in this course.")
+        return await message.reply_text("❌ इस कोर्स में कोई कंटेंट नहीं है।")
 
     to_write = ""
     for item in content_data:
         title = item.get("title", "Untitled")
         url = item.get("video_url") or item.get("file_url")
         if url:
-            to_write += f"{title}:{url}\n"
+            to_write += f"{title}: {url}\n"
 
     filename = f"utkarsh_{course_id}.txt"
     with open(filename, "w", encoding="utf-8") as f:
