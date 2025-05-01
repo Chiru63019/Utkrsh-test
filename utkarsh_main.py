@@ -4,101 +4,89 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 from pyromod import listen
 
-# ========== CONFIGURATION ==========
-API_ID = 28526237  # अपने API_ID से बदलें
-API_HASH = "936db76a74f9a52cfb2cea8a62e4c20e"  # अपने API_HASH से बदलें
-BOT_TOKEN = "7780658331:AAFVkysE818mG5NFeK0UiCp_n7a3pNZmnkE"  # अपने बॉट टोकन से बदलें
-SUDO_USERS = [6486192717]  # अपने Telegram उपयोगकर्ता ID(s) से बदलें
+# ============ CONFIG ============
+API_ID = 28526237
+API_HASH = "936db76a74f9a52cfb2cea8a62e4c20e"
+BOT_TOKEN = "7780658331:AAFVkysE818mG5NFeK0UiCp_n7a3pNZmnkE"
 
-def is_sudo(user_id):
+SUDO_USERS = [6486192717]
+
+def one(user_id):
     return user_id in SUDO_USERS
 
+# ============ START BOT ============
 bot = Client("utkarsh_scraper_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
+
 @bot.on_message(filters.command("start"))
-async def start_cmd(bot: Client, message: Message):
-    await message.reply_text("Welcome to Utkarsh Scraper Bot!\n\nUse /utkarsh to begin.")
+async def start_command(bot: Client, message: Message):
+    await message.reply_text("Hello! Use /utkarsh to scrape Utkarsh Classes content.")
+
 
 @bot.on_message(filters.command("utkarsh"))
 async def utkarsh_handler(bot: Client, message: Message):
-    if not is_sudo(message.from_user.id):
-        return await message.reply_text("Access Denied. You are not authorized.")
-
-    ask = await message.reply_text("Send your Utkarsh registered mobile number:")
-    input1 = await bot.listen(ask.chat.id)
+    if not one(message.from_user.id):
+        return await message.reply_text("✨ Hello Sir,\n\nYou are not authorized to use this bot.")
+    
+    editable = await message.reply_text("Send your Utkarsh registered mobile number:")
+    input1 = await bot.listen(editable.chat.id)
     phone = input1.text.strip()
 
-    # Step 1: Send OTP
-    headers_otp = {
-        "User-Agent": "okhttp/4.9.1",
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
-
-    r1 = requests.post(
+    # Step 1: Send OTP (New API)
+    send_otp = requests.post(
         "https://utkarshclassesapi.classx.co.in/api/utk/send-otp",
-        json={"mobile": phone},
-        headers=headers_otp
+        json={"mobile": phone}
     )
 
     try:
-        r1_data = r1.json()
-        if r1_data.get("message"):
-            await ask.edit(f"✅ OTP Sent: {r1_data['message']}")
-        else:
-            return await ask.edit("❌ OTP भेजने में समस्या:\n\nकोई मैसेज नहीं मिला।")
+        send_data = send_otp.json()
+        if send_data.get("status") != True:
+            return await editable.edit(f"❌ OTP भेजने में समस्या:\n\n{send_data}")
     except Exception as e:
-        return await ask.edit(f"❌ OTP भेजने में समस्या:\n\n{r1.text}\n\nError: {e}")
+        return await editable.edit(f"❌ OTP भेजने में समस्या:\n\n{send_otp.text}\n\nError: {e}")
 
-    ask_otp = await message.reply_text("Now send the OTP you received:")
-    input2 = await bot.listen(ask_otp.chat.id)
+    await editable.edit("✅ OTP sent successfully!\n\nNow send the OTP you received:")
+    input2 = await bot.listen(editable.chat.id)
     otp = input2.text.strip()
 
     # Step 2: Verify OTP
-    headers_verify = {
-        "User-Agent": "okhttp/4.9.1",
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
-
-    r2 = requests.post(
+    verify_otp = requests.post(
         "https://utkarshclassesapi.classx.co.in/api/utk/verify-otp",
-        json={"mobile": phone, "otp": otp},
-        headers=headers_verify
+        json={"mobile": phone, "otp": otp}
     )
 
     try:
-        r2_data = r2.json()
-        token = r2_data["data"]["token"]
-        user_id = str(r2_data["data"]["user"]["id"])
+        data = verify_otp.json()
+        if "data" not in data or "token" not in data["data"]:
+            return await editable.edit("❌ OTP verification failed. Please check the OTP and try again.")
     except Exception as e:
-        return await ask_otp.edit(f"❌ OTP Verification Failed:\n\n{r2.text}\n\nError: {e}")
+        return await editable.edit(f"❌ OTP verification failed:\n\n{verify_otp.text}\n\nError: {e}")
 
+    token = data["data"]["token"]
+    user_id = str(data["data"]["user"]["id"])
     headers = {
         "Authorization": f"Bearer {token}",
         "User-ID": user_id,
-        "User-Agent": "okhttp/4.9.1",
-        "Accept": "application/json"
     }
 
-    # Step 3: Get Course List
+    # Step 3: Get Courses
     r3 = requests.get("https://utkarshclassesapi.classx.co.in/api/utk/course-list", headers=headers)
     courses = r3.json().get("data", [])
     if not courses:
-        return await message.reply_text("No courses found.")
+        return await editable.edit("No courses found.")
 
-    course_text = "**Your Courses:**\n\n"
-    for course in courses:
-        course_text += f"`{course['id']}` - {course['title']}\n"
+    text = "**Your Courses:**\n\n"
+    for c in courses:
+        text += f"`{c['id']}` - {c['title']}\n"
+    await editable.edit(text)
 
-    await message.reply_text(course_text)
-
-    ask_course = await message.reply_text("Send course ID to get content:")
-    input3 = await bot.listen(ask_course.chat.id)
+    editable2 = await message.reply_text("Send a Course ID to fetch content:")
+    input3 = await bot.listen(editable2.chat.id)
     course_id = input3.text.strip()
 
-    # Step 4: Fetch Content
-    r4 = requests.get(f"https://utkarshclassesapi.classx.co.in/api/utk/course-content?course_id={course_id}", headers=headers)
+    # Step 4: Get Course Content
+    content_url = f"https://utkarshclassesapi.classx.co.in/api/utk/course-content?course_id={course_id}"
+    r4 = requests.get(content_url, headers=headers)
     content_data = r4.json().get("data", {}).get("content", [])
 
     if not content_data:
@@ -109,7 +97,7 @@ async def utkarsh_handler(bot: Client, message: Message):
         title = item.get("title", "Untitled")
         url = item.get("video_url") or item.get("file_url")
         if url:
-            to_write += f"{title} : {url}\n"
+            to_write += f"{title}: {url}\n"
 
     filename = f"utkarsh_{course_id}.txt"
     with open(filename, "w", encoding="utf-8") as f:
